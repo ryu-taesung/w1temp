@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>w1temp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body {
+        background-color: black;
+        font-family: monospace;
+      }
+      canvas {
+        display: block;
+        /*height: 30em;*/
+        /*height: 100%;*/
+      }
+      #curTemp {
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+        color: #00f87f;
+        font-weight: bold;
+        padding-bottom: 3px;
+      }
+      #oTemp{
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+        color: #88f;
+        font-weight: bold;
+      }
+      #timeStamp {
+        margin-left: auto;
+        margin-right: auto;
+        padding-top: 3px;
+        text-align: center;
+        color: #ccc;
+        
+      }
+      @media only screen and (max-device-width: 480px) {
+        canvas {
+          height: 30em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="curTemp">&nbsp;</div>
+    <div id="oTemp">&nbsp;</div>
+    <div id="timeStamp">&nbsp;</div>
+    <div>
+      <canvas id="w1temps"></canvas>
+    </div>
+  </body> 
+  
+  <script src="static/js/chart.js"></script>
+  <script src="static/js/hammer.min.js"></script>
+  <script src="static/js/luxon.js"></script>
+  <script src="static/js/chartjs-adapter-luxon.js"></script>
+  <script src="static/js/chartjs-plugin-zoom.min.js"></script>
+  <script>
+    let xAxis = [];
+    let yAxis = [];
+    fetch('/w1temp')
+      .then(res => res.json())
+      .then(w1temps => {
+        const labels = xAxis.reverse();
+        const chartData = {
+          /*labels: labels,*/
+          datasets: [{
+            label: "w1temps",
+            pointRadius: 2,
+            tension: 0.4,
+            /*cubicInterpolationMode: 'monotone',*/
+            backgroundColor: 'rgb(0,248,127)',
+            borderColor: 'rgb(0,248,127)',
+            data: w1temps, //yAxis.reverse(),
+          }, {
+            label: "otemps",
+            pointRadius: 2,
+            tension: 0.4,
+            backgroundColor: 'rgb(136,136,255)',
+            borderColor: 'rgb(136,136,255)',
+            data: [],
+          }]
+        };
+        const config = {
+          type: 'line',
+          data: chartData,
+          options: {
+            maintainAspectRatio: (window.innerHeight < window.innerWidth), //could also test for android in navigator.userAgent
+            plugins: {
+              zoom: {
+                pan: {
+                  enabled: true,
+                  mode: 'xy',
+                },
+                zoom: {
+                  wheel: {
+                    enabled: true,
+                  },
+                  mode: 'xy',
+                  pinch: {
+                    enabled: true,
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                type: 'timeseries', //'time'
+                /*time: {
+                  unit: 'minute',
+                  stepSize: 120,
+                },*/
+                grid: {
+                  color: 'rgb(128,128,128)',
+                },
+              },
+              y: {
+                grid: {
+                  color: 'rgb(128,128,128)',
+                }
+              }
+              // x: {
+              //   type: 'timeseries',
+              // }
+            },
+          },
+        };
+        const w1Chart = new Chart(
+          document.querySelector('#w1temps'),
+          config
+        );
+        document.querySelector('#w1temps').addEventListener('dblclick', function(){
+          w1Chart.resetZoom();
+        });
+        document.querySelector('#w1temps').addEventListener('doubletap', function(){
+          w1Chart.resetZoom();
+        });
+
+        const getOx = async function(){
+          let oxres = await fetch('<%= oxAddr %>/otemp48');
+          let oxData = await oxres.json();
+          w1Chart.data.datasets[1].data = oxData;
+          w1Chart.update('none');
+        }();
+
+        async function updateChart(){
+          let response = await fetch('/dblast');
+          let newData = await response.json();
+          
+          let timestamp = Date.parse(newData[0]);
+          document.querySelector('#curTemp').innerText = 'i_temp: ' + parseFloat(newData[1]).toFixed(1) + "\u00B0F";
+          document.querySelector('#timeStamp').innerText = makeTime(timestamp);
+
+          let oxres = await fetch('<%= oxAddr %>/db-last');
+          let oxData = await oxres.json();
+          let oxOtemp = oxData[0].o_temp[0][1];
+          document.querySelector('#oTemp').innerText = 'o_temp: ' + parseFloat(oxOtemp).toFixed(1) + "\u00B0F";
+
+          //console.log('fired');
+          if(w1Chart.data.datasets[0].data.findIndex(item=>item.x===Date.parse(newData[0]))>-1){
+            //console.log('exists')
+          } else {        
+            w1Chart.data.datasets[0].data.push({x: Date.parse(newData[0]), y: newData[1]});
+            w1Chart.data.datasets[1].data.push({x: oxData[0].o_temp[0][0], y: oxOtemp});
+        		  while(w1Chart.data.datasets[0].data.length > 2880){ 
+        		    w1Chart.data.datasets[0].data.shift();
+        		    w1Chart.data.datasets[1].data.shift();
+        		  }
+            w1Chart.update('none');
+          }
+        }
+      	updateChart();
+	      //console.log(w1Chart.data.labels);
+        setInterval(updateChart, 30000);
+      });
+      
+      function makeTime(ts){
+        ts = new Date(ts);
+        var year = ts.getFullYear();
+        var month = preZero(ts.getMonth()+1);
+        var day = preZero(ts.getDate());
+        var hours = preZero(ts.getHours());
+        var minutes = preZero(ts.getMinutes());
+        var seconds = preZero(ts.getSeconds());
+        
+        var weekday = new Array(7);
+        weekday[0]=  "Sun";
+        weekday[1] = "Mon";
+        weekday[2] = "Tue";
+        weekday[3] = "Wed";
+        weekday[4] = "Thu";
+        weekday[5] = "Fri";
+        weekday[6] = "Sat";
+
+        var n = weekday[ts.getDay()];
+        ts = n+' '+year+'-'+month+'-'+day+' '+hours+':'+minutes+':'+seconds;
+        return ts;
+      }
+      function preZero(a) {
+        return 10 > a ? "0" + a : a;
+      }
+    </script>
+    
+</html>
