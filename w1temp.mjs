@@ -25,6 +25,10 @@ app.get('/live', (req, res) => {
   res.render('live', {oxAddr: process.env.OX_ADDR});
 });
 
+app.get('/radar', (req, res) => {
+    res.sendFile(path.join(__dirname, 'static', 'radar.html'));
+});
+
 app.get('/w1temp', (req, res) => {
     let w1temps = [];
     db.each("SELECT datetime(time_stamp, 'localtime') as time_stamp, w1temp FROM w1temps WHERE datetime(time_stamp, 'localtime') >= datetime('now', '-48 hours', 'localtime') ORDER BY time_stamp ASC", (err, row) => {
