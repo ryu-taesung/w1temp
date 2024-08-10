@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
 app.use('/static', express.static(path.join(__dirname, 'static')));
 
 app.get('/live', (req, res) => {
-  res.render('live', {oxAddr: process.env.OX_ADDR});
+  res.render('live', {ccipquery: process.env.CCIP_QUERY});
 });
 
 app.get('/radar', (req, res) => {

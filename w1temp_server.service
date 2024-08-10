@@ -7,7 +7,7 @@ User=user1
 Group=user1
 Type=forking
 Environment="NODE_ENV=production"
-Environment="OX_ADDR=http://ip:port"
+Environment="CCIP_QUERY=http://ip:port"
 ExecStart=/usr/bin/screen -dmS w1temp_server /home/user1/Downloads/node-v20.14.0-linux-arm64/bin/node /home/user1/w1temp/w1temp.mjs 
 ExecStop=/usr/bin/screen -S w1temp_server -X quit
 Restart=always

@@ -50,6 +50,7 @@
     <div>
       <canvas id="w1temps"></canvas>
     </div>
+    <input type="hidden" id="ccip">
   </body> 
   
   <script src="static/js/chart.js"></script>
@@ -57,6 +58,20 @@
   <script src="static/js/luxon.js"></script>
   <script src="static/js/chartjs-adapter-luxon.js"></script>
   <script src="static/js/chartjs-plugin-zoom.min.js"></script>
+  <script type="module">
+    import { getTodayToken, getCCIPWithCache } from '/static/ccip.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const token = getTodayToken();
+        const ccip = await getCCIPWithCache("<%= ccipquery %>",token);
+        console.log(`got: ${ccip}`);
+        document.querySelector('#ccip').value = ccip;
+      } catch (error) {
+        console.error('Error fetching CCIP:', error);
+      }
+    });
+  </script>
   <script>
     let xAxis = [];
     let yAxis = [];
@@ -139,7 +154,8 @@
         });
 
         const getOx = async function(){
-          let oxres = await fetch('<%= oxAddr %>/otemp48');
+          let ccip = document.querySelector('#ccip').value;
+          let oxres = await fetch(`http://${ccip}:8648/otemp48`);
           let oxData = await oxres.json();
           w1Chart.data.datasets[1].data = oxData;
           w1Chart.update('none');
@@ -153,7 +169,8 @@
           document.querySelector('#curTemp').innerText = 'i_temp: ' + parseFloat(newData[1]).toFixed(1) + "\u00B0F";
           document.querySelector('#timeStamp').innerText = makeTime(timestamp);
 
-          let oxres = await fetch('<%= oxAddr %>/db-last');
+          let ccip = document.querySelector('#ccip').value;
+          let oxres = await fetch(`http://${ccip}:8648/db-last`);
           let oxData = await oxres.json();
           let oxOtemp = oxData[0].o_temp[0][1];
           document.querySelector('#oTemp').innerText = 'o_temp: ' + parseFloat(oxOtemp).toFixed(1) + "\u00B0F";
